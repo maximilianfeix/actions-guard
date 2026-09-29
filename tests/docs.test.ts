@@ -12,3 +12,14 @@ it("has the privacy and support sections the app listing points to", () => {
   expect(page).toContain('id="privacy"');
   expect(page).toContain('id="support"');
 });
+
+it("has a favicon and a share image that exist", () => {
+  expect(page).toContain('rel="icon" href="favicon.svg"');
+  expect(page).toContain(
+    'property="og:image" content="https://maximilianfeix.github.io/actions-guard/og.png"',
+  );
+  expect(page).toContain('name="twitter:card" content="summary_large_image"');
+  for (const file of ["../docs/favicon.svg", "../docs/og.png"]) {
+    expect(readFileSync(new URL(file, import.meta.url)).length).toBeGreaterThan(200);
+  }
+});
