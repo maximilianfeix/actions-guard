@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- Source of docs/og.png (1200×630) and docs/assets/social-preview.png (1280×640): npm run images -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@500;600;700&display=swap"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      body {
+        background: #0b0f17;
+        color: #e6ebf2;
+        font-family: "IBM Plex Sans", sans-serif;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        gap: 56px;
+        padding: 0 72px;
+        box-sizing: border-box;
+        background-image:
+          radial-gradient(55% 70% at 78% 40%, rgba(61, 220, 151, 0.16), transparent 70%),
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+        background-size:
+          auto,
+          32px 32px,
+          32px 32px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 30px;
+        font-weight: 600;
+      }
+      .brand svg {
+        width: 52px;
+        height: 52px;
+      }
+      h1 {
+        font-size: 58px;
+        line-height: 1.08;
+        letter-spacing: -0.025em;
+        margin: 34px 0 22px;
+        font-weight: 700;
+      }
+      h1 em {
+        font-style: normal;
+        color: #3ddc97;
+      }
+      p {
+        margin: 0;
+        font-size: 23px;
+        line-height: 1.45;
+        color: #93a0b4;
+      }
+      .card {
+        background: #131a26;
+        border-radius: 16px;
+        box-shadow:
+          0 40px 90px -30px rgba(0, 0, 0, 0.8),
+          0 0 0 1px #243044;
+        overflow: hidden;
+        font:
+          17px/1.8 "IBM Plex Mono",
+          monospace;
+      }
+      .file {
+        padding: 14px 20px;
+        color: #93a0b4;
+        font-size: 15px;
+        border-bottom: 1px solid #1b2535;
+        background: #182131;
+      }
+      .ln {
+        padding: 0 20px;
+        white-space: pre;
+        color: #c9d4e3;
+      }
+      .add {
+        background: rgba(61, 220, 151, 0.09);
+      }
+      .k {
+        color: #7cc4ff;
+      }
+      .x {
+        color: #d5a6ff;
+      }
+      .note {
+        margin: 6px 20px 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 107, 107, 0.55);
+        background: rgba(255, 107, 107, 0.1);
+        font:
+          16px "IBM Plex Sans",
+          sans-serif;
+        white-space: normal;
+      }
+      .note b {
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 500;
+      }
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-top: 1px solid #1b2535;
+        background: #182131;
+        font:
+          600 17px "IBM Plex Sans",
+          sans-serif;
+      }
+      .dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ff6b6b;
+        display: grid;
+        place-items: center;
+      }
+      .check span {
+        color: #93a0b4;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="brand">
+        <svg viewBox="0 0 32 32">
+          <path d="M16 2.5 4.5 7v8.2c0 7 4.9 12.6 11.5 14.3 6.6-1.7 11.5-7.3 11.5-14.3V7z" fill="#3ddc97" />
+          <path
+            d="m10.5 16.2 3.8 3.8 7.4-8"
+            fill="none"
+            stroke="#062116"
+            stroke-width="2.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Actions Guard
+      </div>
+      <h1>Catch risky workflow changes <em>before they merge.</em></h1>
+      <p>
+        A GitHub App that reviews pull requests to <b style="color: #e6ebf2">.github/workflows</b> and flags
+        the risks they add.
+      </p>
+    </div>
+    <div class="card">
+      <div class="file">.github/workflows/preview.yml</div>
+      <div style="padding: 8px 0">
+        <div class="ln"><span class="k">on</span>: <span class="k">pull_request_target</span></div>
+        <div class="ln"><span class="k">steps</span>:</div>
+        <div class="ln add">- <span class="k">uses</span>: actions/checkout@v4</div>
+        <div class="ln add"><span class="k">with</span>:</div>
+        <div class="ln add"><span class="k">ref</span>: <span class="x">${{ github.head_ref }}</span></div>
+        <div class="note"><b>untrusted-checkout</b> · critical – runs the PR's code with your secrets.</div>
+      </div>
+      <div class="check">
+        <div class="dot">
+          <svg
+            viewBox="0 0 24 24"
+            width="13"
+            height="13"
+            stroke="#131a26"
+            stroke-width="3.5"
+            fill="none"
+            stroke-linecap="round"
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </div>
+        Actions Guard – failed <span>1 new risk: 1 critical</span>
+      </div>
+    </div>
+  </body>
+</html>
