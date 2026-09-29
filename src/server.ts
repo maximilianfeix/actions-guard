@@ -92,3 +92,26 @@ export function start(
   server.listen(settings.port, () => log(`Actions Guard listening on :${settings.port}`));
   return server;
 }
+
+/**
+ * A fetch handler that reads its settings on the first request and remembers them. Missing settings are
+ * answered with a 500 that names them – on a serverless host that beats a crash with no explanation.
+ */
+export function envHandler(
+  env: Record<string, string | undefined>,
+  log: (message: string) => void = console.log,
+): (request: Request) => Promise<Response> {
+  let deps: WebhookDeps | undefined;
+  return async (request) => {
+    if (!deps) {
+      try {
+        deps = depsFromEnv(loadEnv(env), log);
+      } catch (error) {
+        const message = `Actions Guard isn't configured: ${(error as Error).message}`;
+        log(message);
+        return new Response(message, { status: 500 });
+      }
+    }
+    return fetchHandler(request, deps);
+  };
+}

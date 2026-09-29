@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createWebhookServer, fetchHandler, loadEnv, start } from "../src/server.js";
+import { createWebhookServer, envHandler, fetchHandler, loadEnv, start } from "../src/server.js";
 import type { WebhookDeps } from "../src/webhook.js";
 import { FakeGitHub } from "./fake-github.js";
 
@@ -127,5 +127,32 @@ describe("start", () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe("envHandler", () => {
+  it("says which settings are missing instead of crashing", async () => {
+    const handler = envHandler({ APP_ID: "1" });
+    const res = await handler(new Request("https://x.dev/api/webhook"));
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe(
+      "Actions Guard isn't configured: Missing or invalid: PRIVATE_KEY or PRIVATE_KEY_PATH, WEBHOOK_SECRET",
+    );
+  });
+
+  it("reads the settings once and then handles requests", async () => {
+    const env = { APP_ID: "1", PRIVATE_KEY: "PEM", WEBHOOK_SECRET: SECRET };
+    const handler = envHandler(env);
+    const post = () =>
+      handler(
+        new Request("https://x.dev/api/webhook", {
+          method: "POST",
+          headers: { "x-github-event": "ping", "x-hub-signature-256": sign("{}") },
+          body: "{}",
+        }),
+      );
+    expect(await (await post()).text()).toBe("pong");
+    env.WEBHOOK_SECRET = "changed later";
+    expect((await post()).status).toBe(200);
   });
 });
