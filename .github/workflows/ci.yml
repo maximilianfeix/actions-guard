@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run typecheck
+      # fails below the thresholds in vitest.config.ts (90 % lines, 85 % branches)
+      - run: npm run coverage
+      - run: npm run build
+      # dogfooding: no medium or worse risk in this repository's own workflows (the low ones are the scopes
+      # CodeQL and Pages need)
+      - run: node dist/bin.js --fail-on medium .github/workflows/*.yml
+      - run: npm run smoke
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t actions-guard .
+      # the image starts, answers its health check and rejects an unsigned delivery
+      - run: |
+          docker run -d --name guard -p 3000:3000 \
+            -e APP_ID=1 -e PRIVATE_KEY=unused -e WEBHOOK_SECRET=ci actions-guard
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:3000/healthz && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' -H 'x-github-event: ping' http://127.0.0.1:3000/api/webhook)" = 401
+          docker logs guard

