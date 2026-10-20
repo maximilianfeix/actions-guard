@@ -32,10 +32,10 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4",
-    "@vitest/coverage-v8": "^5.0.3",
-    "prettier": "^3.9.9",
-    "puppeteer-core": "^25.12.0",
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
+    "prettier": "^3.9.10",
+    "puppeteer-core": "^25.14.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
   },
